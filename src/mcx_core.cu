@@ -1096,6 +1096,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	       if(v->nscat!=EPS){ // if this is not my first jump
                        //random arimuthal angle
 	                     float cphi=1.f,sphi=0.f,theta,stheta,ctheta;
+						 float tmp0=0.f;
 
                        compute_rand_angles( &theta, &stheta, &ctheta,
                                             &sphi, &cphi, 
