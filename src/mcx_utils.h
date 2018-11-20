@@ -49,7 +49,7 @@
 #define MIN(a,b)           ((a)<(b)?(a):(b))             /**< macro to get the min values of two numbers */
 #define MAX(a,b)           ((a)>(b)?(a):(b))             /**< macro to get the max values of two numbers */
 
-enum TOutputType {otFlux, otFluence, otEnergy, otJacobian, otWP};   /**< types of output */
+enum TOutputType {otFlux, otFluence, otEnergy, otJacobian, otWP, otDCS};   /**< types of output */
 enum TMCXParent  {mpStandalone, mpMATLAB};                          /**< whether MCX is run in binary or mex mode */
 enum TOutputFormat {ofMC2, ofNifti, ofAnalyze, ofUBJSON};           /**< output data format */
 
@@ -204,13 +204,16 @@ typedef struct MCXConfig{
         int parentid;
 	unsigned int runtime;
 
-	double energytot, energyabs, energyesc;
-	float normalizer;
-	unsigned int maxjumpdebug; /**< num of  photon scattering events to save when saving photon trajectory is enabled*/
-	unsigned int debugdatalen;
-	unsigned int gscatter;
-	float *exportdebugdata;
-	uint mediabyte;
+	double energytot;            /**<total launched photon packet weights*/
+	double energyabs;            /**<total absorbed photon packet weights*/
+	double energyesc;            /**<total escaped photon packet weights*/
+	float normalizer;            /**<normalization factor*/
+	unsigned int maxjumpdebug;   /**<num of  photon scattering events to save when saving photon trajectory is enabled*/
+	unsigned int debugdatalen;   /**<max number of photon trajectory position length*/
+	unsigned int gscatter;       /**<after how many scattering events that we can use mus' instead of mus */
+	float *exportdebugdata;      /**<pointer to the buffer where the photon trajectory data are stored*/
+	uint mediabyte;              /**< how many bytes per media index, mcx supports 1, 2 and 4, 4 is the default*/
+	float *dx, *dy, *dz;         /**< anisotropic voxel spacing for x,y,z axis */
 } Config;
 
 #ifdef	__cplusplus

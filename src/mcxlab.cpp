@@ -40,14 +40,14 @@
   #include <omp.h>
 #endif
 
-#if defined(USE_XORSHIFT128P_RAND)
+#if defined(USE_XOROSHIRO128P_RAND)
     #define RAND_WORD_LEN 4
+#elif defined(USE_LL5_RAND)
+    #define RAND_WORD_LEN 5
 #elif defined(USE_POSIX_RAND)
     #define RAND_WORD_LEN 4
-#elif defined(USE_MT_RAND)
-    #define RAND_WORD_LEN 0
 #else
-    #define RAND_WORD_LEN 5       /**< number of Words per RNG state */
+    #define RAND_WORD_LEN 4       /**< number of Words per RNG state */
 #endif
 
 /**<  Macro to read the 1st scalar cfg member */
@@ -206,9 +206,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	cfg.issave2pt=(nlhs>=1);  /** save fluence rate to the 1st output if present */
 	cfg.issavedet=(nlhs>=2);  /** save detected photon data to the 2nd output if present */
 	cfg.issaveseed=(nlhs>=4); /** save detected photon seeds to the 4th output if present */
-#if defined(USE_MT_RAND)
-        cfg.issaveseed=0;
-#endif
+
         /** One must define the domain and properties */
 	if(cfg.vol==NULL || cfg.medianum==0){
 	    mexErrMsgTxt("You must define 'vol' and 'prop' field.");
@@ -226,7 +224,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	    cfg.exportfield = (float*)calloc(fieldlen,sizeof(float));
 	}
 	if(nlhs>=2){
-	    cfg.exportdetected=(float*)malloc((cfg.medianum+1+cfg.issaveexit*6+(cfg.ismomentum>0)*(cfg.medianum-1))*cfg.maxdetphoton*sizeof(float));
+	    cfg.exportdetected=(float*)malloc((2+(cfg.medianum-1)*(2+(cfg.ismomentum>0))+(cfg.issaveexit>0)*6)*cfg.maxdetphoton*sizeof(float));
         }
         if(nlhs>=4){
 	    cfg.seeddata=malloc(cfg.maxdetphoton*sizeof(float)*RAND_WORD_LEN);
@@ -302,7 +300,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	}
 	/** if the 2nd output presents, output the detected photon partialpath data */
 	if(nlhs>=2){
-            fielddim[0]=(cfg.medianum+1+cfg.issaveexit*6+(cfg.ismomentum>0)*(cfg.medianum-1)); fielddim[1]=cfg.detectedcount; 
+            fielddim[0]=2+(cfg.medianum-1)*(2+(cfg.ismomentum>0))+(cfg.issaveexit>0)*6; fielddim[1]=cfg.detectedcount; 
             fielddim[2]=0; fielddim[3]=0;
             if(cfg.detectedcount>0){
                     mxSetFieldByNumber(plhs[1],jstruct,0, mxCreateNumericArray(2,fielddim,mxSINGLE_CLASS,mxREAL));
@@ -552,7 +550,7 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
 	printf("mcx.srctype='%s';\n",strtypestr);
     }else if(strcmp(name,"outputtype")==0){
         int len=mxGetNumberOfElements(item);
-        const char *outputtype[]={"flux","fluence","energy","jacobian","nscat","wl","wp",""};
+        const char *outputtype[]={"flux","fluence","energy","jacobian","nscat","wl","wp","wm",""};
         char outputstr[MAX_SESSION_LENGTH]={'\0'};
 
         if(!mxIsChar(item) || len==0)
@@ -563,7 +561,7 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
         if (status != 0)
              mexWarnMsgTxt("not enough space. string is truncated.");
         cfg->outputtype=mcx_keylookup(outputstr,outputtype);
-        if(cfg->outputtype==5 || cfg->outputtype==6) // map wl to jacobian, wp to nscat
+        if(cfg->outputtype>=5) // map wl to jacobian, wp to nscat
              cfg->outputtype-=2;
         if(cfg->outputtype==-1)
              mexErrMsgTxt("the specified output type is not supported");
@@ -806,7 +804,7 @@ void mcx_validate_config(Config *cfg){
          mexErrMsgTxt("respin number can not be 0, check your -r/--repeat input or cfg.respin value");
 
      if(cfg->seed<0 && cfg->seed!=SEED_FROM_FILE) cfg->seed=time(NULL);
-     if((cfg->outputtype==otJacobian || cfg->outputtype==otWP) && cfg->seed!=SEED_FROM_FILE)
+     if((cfg->outputtype==otJacobian || cfg->outputtype==otWP || cfg->outputtype==otDCS) && cfg->seed!=SEED_FROM_FILE)
          mexErrMsgTxt("Jacobian output is only valid in the reply mode. Please define cfg.seed");     
      for(i=0;i<cfg->detnum;i++){
         if(!cfg->issrcfrom0){
@@ -831,7 +829,7 @@ void mcx_validate_config(Config *cfg){
      }
      cfg->his.maxmedia=cfg->medianum-1; /*skip medium 0*/
      cfg->his.detnum=cfg->detnum;
-     cfg->his.colcount=cfg->medianum+1+cfg->issaveexit*6+(cfg->ismomentum>0)*(cfg->medianum-1); /*column count=maxmedia+2*/
+     cfg->his.colcount=2+(cfg->medianum-1)*(2+(cfg->ismomentum>0))+(cfg->issaveexit>0)*6; /*column count=maxmedia+2*/
      mcx_replay_prep(cfg);
 }
 

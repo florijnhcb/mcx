@@ -39,7 +39,9 @@ function varargout=mcxlab(varargin)
 %     *cfg.srcdir:     a 1 by 3 vector, specifying the incident vector; if srcdir
 %                      contains a 4th element, it specifies the focal length of
 %                      the source (only valid for focuable src, such as planar, disk,
-%                      fourier, gaussian, zgaussian, slit, etc)
+%                      fourier, gaussian, zgaussian, slit, etc); if the focal length
+%                      is -0.0, all photons will be launched isotropically regardless
+%                      of the srcdir direction.
 %
 %== MC simulation settings ==
 %      cfg.seed:       seed for the random number generator (integer) [0]
@@ -170,13 +172,15 @@ function varargout=mcxlab(varargin)
 %      detphoton: (optional) a struct array, with a length equals to that of cfg.
 %            Starting from v2018, the detphoton contains the below subfields:
 %              detphoton.detid: the ID(>0) of the detector that captures the photon
-%              detphoton.nscat: cummulative scattering event counts
+%              detphoton.nscat: cummulative scattering event counts in each medium
 %              detphoton.ppath: cummulative path lengths in each medium (partial pathlength)
 %                   one need to multiply cfg.unitinmm with ppath to convert it to mm.
+%              detphoton.mom: cummulative cos_theta for momentum transfer in each medium  
 %              detphoton.p or .v: exit position and direction, when cfg.issaveexit=1
+%              detphoton.w0: photon initial weight at launch time
 %              detphoton.prop: optical properties, a copy of cfg.prop
 %              detphoton.data: a concatenated and transposed array in the order of
-%                    [detid nscat ppath p v]'
+%                    [detid nscat ppath mom p v w0]'
 %              "data" is the is the only subfield in all MCXLAB before 2018
 %      vol: (optional) a struct array, each element is a preprocessed volume
 %            corresponding to each instance of cfg. Each volume is a 3D int32 array.
@@ -274,16 +278,16 @@ if(nargout>=2)
                 continue;
             end
             newdetp.detid=int32(detp(1,:))';
-            newdetp.nscat=int32(detp(2,:))';    % 2nd column is the total num of scattering
-            newdetp.ppath=detp(3:2+medianum,:)';% 2nd medianum block is partial path
+            newdetp.nscat=int32(detp(2:medianum+1,:))';    % 1st medianum block is num of scattering
+            newdetp.ppath=detp(medianum+2:2*medianum+1,:)';% 2nd medianum block is partial path
             if(isfield(cfg(i),'ismomentum') && cfg(i).ismomentum)
-                newdetp.mom=detp(medianum+3:2*medianum+2,:)'; % 3rd medianum block is the momentum transfer
+                newdetp.mom=detp(2*medianum+2:3*medianum+1,:)'; % 3rd medianum block is the momentum transfer
             end
             if(isfield(cfg(i),'issaveexit') && cfg(i).issaveexit)
-                newdetp.p=detp(end-5:end-3,:)';      %columns 7-5 from the right store the exit positions*/
-                newdetp.v=detp(end-2:end,:)';	     %columns 4-2 from the right store the exit dirs*/
+                newdetp.p=detp(end-6:end-4,:)';             %columns 7-5 from the right store the exit positions*/
+                newdetp.v=detp(end-3:end-1,:)';	     %columns 4-2 from the right store the exit dirs*/
             end
-            % newdetp.w0=detp(end,:)';  % last column is the initial packet weight
+	    newdetp.w0=detp(end,:)';  % last column is the initial packet weight
             newdetp.prop=cfg(i).prop;
             newdetp.data=detp;      % enable this line for compatibility
             newdetpstruct(i)=newdetp;
