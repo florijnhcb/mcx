@@ -26,8 +26,38 @@ type
 
   TfmMCX = class(TForm)
     acEditShape: TActionList;
+    mcxdoWebURL: TAction;
     MenuItem33: TMenuItem;
     MenuItem34: TMenuItem;
+    MenuItem35: TMenuItem;
+    MenuItem36: TMenuItem;
+    MenuItem37: TMenuItem;
+    MenuItem38: TMenuItem;
+    MenuItem39: TMenuItem;
+    MenuItem40: TMenuItem;
+    MenuItem41: TMenuItem;
+    MenuItem42: TMenuItem;
+    MenuItem43: TMenuItem;
+    MenuItem44: TMenuItem;
+    MenuItem45: TMenuItem;
+    MenuItem46: TMenuItem;
+    MenuItem47: TMenuItem;
+    MenuItem48: TMenuItem;
+    MenuItem49: TMenuItem;
+    MenuItem50: TMenuItem;
+    MenuItem51: TMenuItem;
+    MenuItem52: TMenuItem;
+    MenuItem53: TMenuItem;
+    MenuItem54: TMenuItem;
+    MenuItem55: TMenuItem;
+    MenuItem56: TMenuItem;
+    MenuItem57: TMenuItem;
+    MenuItem58: TMenuItem;
+    MenuItem59: TMenuItem;
+    MenuItem60: TMenuItem;
+    MenuItem61: TMenuItem;
+    MenuItem62: TMenuItem;
+    PopupMenu3: TPopupMenu;
     shapePreview: TAction;
     edOutputFormat: TComboBox;
     Label11: TLabel;
@@ -300,6 +330,7 @@ type
     procedure lvJobsSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
     procedure mcxdoWebExecute(Sender: TObject);
+    procedure mcxdoWebURLExecute(Sender: TObject);
     procedure mcxSetCurrentExecute(Sender: TObject);
     procedure MenuItem22Click(Sender: TObject);
     procedure miUseMatlabClick(Sender: TObject);
@@ -593,7 +624,7 @@ end;
 
 procedure TfmMCX.mcxdoHelpExecute(Sender: TObject);
 begin
-   OpenURL('http://mcx.sourceforge.net/cgi-bin/index.cgi?Doc');
+
 end;
 
 function TfmMCX.ExpandPassword(url: string): string;
@@ -877,7 +908,10 @@ begin
         grGPU.Visible:=true;
         tabVolumeDesigner.Enabled:=true;
         ckSpecular.Visible:=false;
-        ckMomentum.Visible:=false;
+        if(grProgram.ItemIndex=2) then
+            ckMomentum.Visible:=false
+        else
+            ckMomentum.Visible:=true;
         ckSaveRef.Visible:=true;
         edRespin.Hint:='RespinNum';
         lbRespin.Caption:='Split into runs (-r)';
@@ -1669,6 +1703,13 @@ begin
   OpenURL('http://mcx.space');
 end;
 
+procedure TfmMCX.mcxdoWebURLExecute(Sender: TObject);
+begin
+  if(Sender is TMenuItem) then begin
+        OpenURL((Sender as TMenuItem).Hint);
+  end;
+end;
+
 procedure TfmMCX.mcxSetCurrentExecute(Sender: TObject);
 begin
      if not (lvJobs.Selected = nil) then begin
@@ -1794,9 +1835,9 @@ begin
       if(OpenDir.Execute) then
          grid.Cells[grid.Col,grid.Row]:=OpenDir.FileName;
    end else if(grid.Col=2) and (grid.Row=1) then begin
-      if(grid.Cells[grid.Col,grid.Row]='See Volume Designer...') then
-         pcSimuEditor.ActivePage:=tabVolumeDesigner
-      else
+      //if(grid.Cells[grid.Col,grid.Row]='See Volume Designer...') then
+      //   pcSimuEditor.ActivePage:=tabVolumeDesigner
+      //else
           if(OpenVolume.Execute) then begin
              if(grProgram.ItemIndex<>1) then begin
                  grid.Cells[grid.Col,grid.Row]:=OpenVolume.FileName
@@ -2790,6 +2831,8 @@ begin
     if(grProgram.ItemIndex<2) then begin
       param.Add('--saveseed');
       param.Add(Format('%d',[Integer(ckSaveSeed.Checked)]));
+      param.Add('--momentum');
+      param.Add(Format('%d',[Integer(ckMomentum.Checked)]));
     end;
 
     if(grProgram.ItemIndex>=1) then begin
@@ -2802,8 +2845,6 @@ begin
          param.Add(Format('%d',[Integer(ckSpecular.Checked)]));
          param.Add('--basisorder');
          param.Add(Format('%d',[edRespin.Value]));
-         param.Add('--momentum');
-         param.Add(Format('%d',[Integer(ckMomentum.Checked)]));
     end;
 
     if(grAtomic.ItemIndex=0) then begin

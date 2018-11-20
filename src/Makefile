@@ -99,8 +99,12 @@ else
   endif
 endif
 
-CUGENCODE?=-arch=sm_35
+CUGENCODE?=-arch=sm_30
 OUTPUTFLAG:=-o
+
+kepler: fermi
+keplermex: fermimex
+kepler keplermex: CUGENCODE=-arch=sm_30
 
 logfast:    CUCCOPT+=-use_fast_math
 xor:        CUCCOPT+=-DUSE_XORSHIFT128P_RAND

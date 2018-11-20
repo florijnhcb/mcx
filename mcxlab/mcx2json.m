@@ -59,15 +59,15 @@ end
 %% define the domain and optical properties
 
 Domain=struct();
-Domain=copycfg(cfg,'issrcfrom0',Domain,'OriginType',1);
+Domain=copycfg(cfg,'issrcfrom0',Domain,'OriginType',0);
 Domain=copycfg(cfg,'unitinmm',Domain,'LengthUnit');
 
 Domain.Media=cell2struct(num2cell(cfg.prop), {'mua','mus','g','n'} ,2)';
 
-if(isfield(cfg,'shapes') && ischar(cfg.shapedata))
+if(isfield(cfg,'shapes') && ischar(cfg.shapes))
     Domain.VolumeFile=[filestub '_shapes.json'];
     fid=fopen(Domain.VolumeFile,'wb');
-    fwrite(fid,cfg.shapedata,'uchar');
+    fwrite(fid,cfg.shapes,'uchar');
     fclose(fid);
 end
 

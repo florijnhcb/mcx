@@ -11,7 +11,7 @@
 **          by Graphics Processing Units,"</a> Optics Express, 17(22) 20178-20190 (2009).
 **  \li \c (\b Yu2018) Leiming Yu, Fanny Nina-Paravecino, David Kaeli, and Qianqian Fang,
 **          "Scalable and massively parallel Monte Carlo photon transport
-**           simulations for heterogeneous computing platforms," J. Biomed. Optics, (in press) 2018.
+**           simulations for heterogeneous computing platforms," J. Biomed. Optics, 23(1), 010504, 2018.
 **
 **  \section slicense License
 **          GPL v3, see LICENSE.txt for details
@@ -128,7 +128,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
             mcx_initcfg(&cfg);
             cfg.isgpuinfo=3;
             if(!(activedev=mcx_list_gpu(&cfg,&gpuinfo))){
-                mexWarnMsgTxt("no active GPU device found");
+                mexErrMsgTxt("no active GPU device found");
             }
             plhs[0] = mxCreateStructMatrix(gpuinfo[0].devcount,1,15,gpuinfotag);
             for(int i=0;i<gpuinfo[0].devcount;i++){
@@ -233,6 +233,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	}
         if(nlhs>=5){
 	    cfg.exportdebugdata=(float*)malloc(cfg.maxjumpdebug*sizeof(float)*MCX_DEBUG_REC_LEN);
+	    cfg.debuglevel |= MCX_DEBUG_MOVE;
 	}
 	
 	/** Validate all input fields, and warn incompatible inputs */
@@ -644,11 +645,11 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
            double *val=mxGetPr(item);
 	   cfg->gpuid=val[0];
            memset(cfg->deviceid,0,MAX_DEVICE);
-           if(cfg->gpuid<MAX_DEVICE){
+           if(cfg->gpuid>0 && cfg->gpuid<MAX_DEVICE){
                 memset(cfg->deviceid,'0',cfg->gpuid-1);
            	cfg->deviceid[cfg->gpuid-1]='1';
            }else
-           	mexErrMsgTxt("GPU id can not be more than 256");
+           	mexErrMsgTxt("GPU id must be positive and can not be more than 256");
            printf("mcx.gpuid=%d;\n",cfg->gpuid);
 	}
         for(int i=0;i<MAX_DEVICE;i++)
@@ -783,8 +784,10 @@ void mcx_validate_config(Config *cfg){
 
      if(cfg->medianum){
         for(int i=0;i<cfg->medianum;i++)
-             if(cfg->prop[i].mus==0.f)
+             if(cfg->prop[i].mus==0.f){
 	         cfg->prop[i].mus=EPS;
+		 cfg->prop[i].g=1.f;
+	     }
      }
      if(cfg->unitinmm!=1.f){
         cfg->steps.x=cfg->unitinmm; cfg->steps.y=cfg->unitinmm; cfg->steps.z=cfg->unitinmm;

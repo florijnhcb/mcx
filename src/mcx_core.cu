@@ -11,7 +11,7 @@
 **          by Graphics Processing Units,"</a> Optics Express, 17(22) 20178-20190 (2009).
 **  \li \c (\b Yu2018) Leiming Yu, Fanny Nina-Paravecino, David Kaeli, and Qianqian Fang,
 **          "Scalable and massively parallel Monte Carlo photon transport
-**           simulations for heterogeneous computing platforms," J. Biomed. Optics, (in press) 2018.
+**           simulations for heterogeneous computing platforms," J. Biomed. Optics, 23(1), 010504, 2018.
 **
 **  \section slicense License
 **          GPL v3, see LICENSE.txt for details
@@ -641,7 +641,7 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
           if(gcfg->savedet){
              if(isdet>0 && *mediaid==0)
 	         savedetphoton(n_det,dpnum,v->nscat,ppath,p,v,photonseed,seeddata);
-             clearpath(ppath,gcfg->maxmedia);
+             clearpath(ppath,gcfg->maxmedia*(1+gcfg->ismomentum));
           }
 #endif
           if(*mediaid==0 && *idx1d!=OUTSIDE_VOLUME && gcfg->issaveref){
@@ -1141,7 +1141,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 #endif
                        /** Update direction vector with the two random angles */
 		       if(gcfg->is2d)
-		           rotatevector2d(v,stheta,ctheta);
+		           rotatevector2d(v,(rand_next_aangle(t)>0.5f ? stheta: -stheta),ctheta);
 		       else
                            rotatevector(v,stheta,ctheta,sphi,cphi);
                        v->nscat++;
@@ -1518,8 +1518,8 @@ int mcx_list_gpu(Config *cfg, GPUInfo **info){
 	    MCX_FPRINTF(stdout,"=============================   GPU Infomation  ================================\n");
 	    MCX_FPRINTF(stdout,"Device %d of %d:\t\t%s\n",(*info)[dev].id,(*info)[dev].devcount,(*info)[dev].name);
 	    MCX_FPRINTF(stdout,"Compute Capability:\t%u.%u\n",(*info)[dev].major,(*info)[dev].minor);
-	    MCX_FPRINTF(stdout,"Global Memory:\t\t%u B\nConstant Memory:\t%u B\n\
-Shared Memory:\t\t%u B\nRegisters:\t\t%u\nClock Speed:\t\t%.2f GHz\n",
+	    MCX_FPRINTF(stdout,"Global Memory:\t\t%u B\nConstant Memory:\t%u B\n"
+				"Shared Memory:\t\t%u B\nRegisters:\t\t%u\nClock Speed:\t\t%.2f GHz\n",
                (unsigned int)(*info)[dev].globalmem,(unsigned int)(*info)[dev].constmem,
                (unsigned int)(*info)[dev].sharedmem,(unsigned int)(*info)[dev].regcount,(*info)[dev].clock*1e-6f);
 	  #if CUDART_VERSION >= 2000
@@ -1625,6 +1625,8 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
            return;
 
      gpuid=cfg->deviceid[threadid]-1;
+     if(gpuid<0)
+          mcx_error(-1,"GPU ID must be non-zero",__FILE__,__LINE__);
      CUDA_ASSERT(cudaSetDevice(gpuid));
 
      if(gpu[gpuid].maxgate==0 && dimxyz>0){
@@ -2064,6 +2066,13 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 #pragma omp critical
 {
 	       if(debugrec>0){
+		   if(debugrec>cfg->maxdetphoton){
+			MCX_FPRINTF(cfg->flog,"WARNING: the saved trajectory positions (%d) \
+are more than what your have specified (%d), please use the --maxjumpdebug option to specify a greater number\n"
+                           ,debugrec,cfg->maxjumpdebug);
+		   }else{
+			MCX_FPRINTF(cfg->flog,"saved %ud trajectory positions, total: %d\t",debugrec,cfg->maxjumpdebug+debugrec);
+		   }
                    debugrec=min(debugrec,cfg->maxjumpdebug);
 	           cfg->exportdebugdata=(float*)realloc(cfg->exportdebugdata,(cfg->debugdatalen+debugrec)*debuglen*sizeof(float));
                    CUDA_ASSERT(cudaMemcpy(cfg->exportdebugdata+cfg->debugdatalen, gdebugdata,sizeof(float)*debuglen*debugrec,cudaMemcpyDeviceToHost));
@@ -2211,6 +2220,13 @@ is more than what your have specified (%d), please use the -H option to specify 
 
          cfg->his.detected=cfg->detectedcount;
          mcx_savedetphoton(cfg->exportdetected,cfg->seeddata,cfg->detectedcount,0,cfg);
+     }
+     if((cfg->debuglevel & MCX_DEBUG_MOVE) && cfg->parentid==mpStandalone && cfg->exportdebugdata){
+         cfg->his.colcount=MCX_DEBUG_REC_LEN;
+         cfg->his.savedphoton=cfg->debugdatalen;
+	 cfg->his.totalphoton=cfg->nphoton;
+         cfg->his.detected=0;
+         mcx_savedetphoton(cfg->exportdebugdata,NULL,cfg->debugdatalen,0,cfg);
      }
 }
 #pragma omp barrier

@@ -11,7 +11,7 @@
 **          by Graphics Processing Units,"</a> Optics Express, 17(22) 20178-20190 (2009).
 **  \li \c (\b Yu2018) Leiming Yu, Fanny Nina-Paravecino, David Kaeli, and Qianqian Fang,
 **          "Scalable and massively parallel Monte Carlo photon transport
-**           simulations for heterogeneous computing platforms," J. Biomed. Optics, (in press) 2018.
+**           simulations for heterogeneous computing platforms," J. Biomed. Optics, 23(1), 010504, 2018.
 **
 **  \section slicense License
 **          GPL v3, see LICENSE.txt for details
@@ -178,7 +178,7 @@ void mcx_initcfg(Config *cfg){
      cfg->isdumpmask=0;
      cfg->srctype=0;;         /** use pencil beam as default source type */
      cfg->maxdetphoton=1000000;
-     cfg->maxjumpdebug=1000000;
+     cfg->maxjumpdebug=10000000;
      cfg->exportdebugdata=NULL;
      cfg->debugdatalen=0;
      cfg->autopilot=0;
@@ -419,11 +419,12 @@ void mcx_savedata(float *dat, size_t len, Config *cfg){
 
 void mcx_savedetphoton(float *ppath, void *seeds, int count, int doappend, Config *cfg){
 	FILE *fp;
-	char fhistory[MAX_PATH_LENGTH];
+	char fhistory[MAX_PATH_LENGTH], filetag;
+	filetag=((cfg->his.detected==0  && cfg->his.savedphoton) ? 't' : 'h');
         if(cfg->rootpath[0])
-                sprintf(fhistory,"%s%c%s.mch",cfg->rootpath,pathsep,cfg->session);
+                sprintf(fhistory,"%s%c%s.mc%c",cfg->rootpath,pathsep,cfg->session,filetag);
         else
-                sprintf(fhistory,"%s.mch",cfg->session);
+                sprintf(fhistory,"%s.mc%c",cfg->session,filetag);
 	if(doappend){
            fp=fopen(fhistory,"ab");
 	}else{
@@ -704,9 +705,12 @@ void mcx_prepdomain(char *filename, Config *cfg){
      if(cfg->replaydet==-1 && cfg->detnum==1)
         cfg->replaydet=1;
      if(cfg->medianum){
-        for(int i=0;i<cfg->medianum;i++)
-             if(cfg->prop[i].mus==0.f)
+        for(int i=0;i<cfg->medianum;i++){
+             if(cfg->prop[i].mus==0.f){
 	         cfg->prop[i].mus=EPS;
+		 cfg->prop[i].g=1.f;
+	     }
+	}
      }
      for(int i=0;i<MAX_DEVICE;i++)
         if(cfg->deviceid[i]=='0')
@@ -1123,10 +1127,10 @@ int mcx_loadjson(cJSON *root, Config *cfg){
                      if(cfg->srcpattern) free(cfg->srcpattern);
                      cfg->srcpattern=(float*)calloc(nx*ny*nz,sizeof(float));
                      for(i=0;i<nx*ny*nz;i++){
-                         cfg->srcpattern[i]=pat->valuedouble;
-                         if((pat=pat->next)==NULL){
+                         if(pat==NULL)
                              MCX_ERROR(-1,"Incomplete pattern data");
-                         }
+                         cfg->srcpattern[i]=pat->valuedouble;
+                         pat=pat->next;
                      }
                  }else if(pat){
                      FILE *fid=fopen(pat->valuestring,"rb");
@@ -1769,7 +1773,7 @@ void mcx_parsecmd(int argc, char* argv[], Config *cfg){
                                 }else{
                                     i=mcx_readarg(argc,argv,i,&(cfg->gpuid),"int");
                                     memset(cfg->deviceid,'0',MAX_DEVICE);
-                                    if(cfg->gpuid<MAX_DEVICE)
+                                    if(cfg->gpuid>0 && cfg->gpuid<MAX_DEVICE)
                                          cfg->deviceid[cfg->gpuid-1]='1';
                                     else
                                          mcx_error(-2,"GPU id can not be more than 256",__FILE__,__LINE__);
@@ -1970,10 +1974,10 @@ int mcx_lookupindex(char *key, const char *index){
  */
 
 void mcx_version(Config *cfg){
-    const char ver[]="$Rev::      $";
+    const char ver[]="$Rev::       $";
     int v=0;
-    sscanf(ver,"$Rev::%d",&v);
-    MCX_FPRINTF(cfg->flog, "MCX Revision %d\n",v);
+    sscanf(ver,"$Rev::%x",&v);
+    MCX_FPRINTF(cfg->flog, "MCX Revision %x\n",v);
     exit(0);
 }
 
@@ -2116,9 +2120,9 @@ where possible parameters include (the first value in [*|*] is the default)\n\
  --maxvoidstep  [1000|int]     maximum distance (in voxel unit) of a photon that\n\
                                can travel before entering the domain, if \n\
                                launched outside (i.e. a widefield source)\n\
- --maxjumpdebug [1000000|int]  when trajectory is requested (i.e. -D M),\n\
+ --maxjumpdebug [10000000|int] when trajectory is requested (i.e. -D M),\n\
                                use this parameter to set the maximum positions\n\
-                               stored (default: 1e6)\n\
+                               stored (default: 1e7)\n\
  --faststep [0|1]              1-use fast 1mm stepping, [0]-precise ray-tracing\n\
 \n\
 == Example ==\n\
